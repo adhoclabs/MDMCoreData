@@ -187,14 +187,14 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
         case NSFetchedResultsChangeInsert:
             [self.sectionsBeingAdded addIndex:sectionIndex];
             [self.tableView insertSections:[NSIndexSet indexSetWithIndex:sectionIndex]
-                          withRowAnimation:UITableViewRowAnimationAutomatic];
+                          withRowAnimation:UITableViewRowAnimationNone];
             
             break;
 
         case NSFetchedResultsChangeDelete:
             [self.sectionsBeingRemoved addIndex:sectionIndex];
             [self.tableView deleteSections:[NSIndexSet indexSetWithIndex:sectionIndex]
-                          withRowAnimation:UITableViewRowAnimationAutomatic];
+                          withRowAnimation:UITableViewRowAnimationNone];
             
             break;
             
@@ -214,20 +214,20 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
     switch (type) {
         case NSFetchedResultsChangeInsert:
             [self.tableView insertRowsAtIndexPaths:@[newIndexPath]
-                                  withRowAnimation:UITableViewRowAnimationAutomatic];
+                                  withRowAnimation:UITableViewRowAnimationNone];
            
             break;
 
         case NSFetchedResultsChangeDelete:
             [self.tableView deleteRowsAtIndexPaths:@[indexPath]
-                                  withRowAnimation:UITableViewRowAnimationAutomatic];
+                                  withRowAnimation:UITableViewRowAnimationNone];
            
             break;
 
         case NSFetchedResultsChangeUpdate:
             if ([self.tableView.indexPathsForVisibleRows containsObject:indexPath]) {
                 
-                [self.tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationAutomatic];
+                [self.tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
             }
            
             break;
