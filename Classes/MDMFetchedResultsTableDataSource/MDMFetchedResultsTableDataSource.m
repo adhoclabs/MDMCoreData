@@ -99,8 +99,25 @@ fetchedResultsController:(NSFetchedResultsController *)fetchedResultsController 
 
 - (NSUInteger)numberOfRowsInSection:(NSUInteger)section {
     
-    if (section < [self.fetchedResultsController.sections count]) {
+    if (self.insertTopSection) {
+    
+        if (section == 0) {
+            return 0;
+        }
 
+        NSInteger numberOfRows = 0;
+
+        if ([[self.fetchedResultsController sections] count] > 0) {
+            id <NSFetchedResultsSectionInfo> sectionInfo = [[self.fetchedResultsController sections] objectAtIndex:section-1];
+            numberOfRows = [sectionInfo numberOfObjects];
+        }
+
+        return numberOfRows;
+        
+    }
+    
+    if (section < [self.fetchedResultsController.sections count]) {
+        
         return [self.fetchedResultsController.sections[section] numberOfObjects];
     }
     
@@ -128,7 +145,11 @@ fetchedResultsController:(NSFetchedResultsController *)fetchedResultsController 
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
 
-    return self.fetchedResultsController.sections.count;
+    if (self.insertTopSection) {
+        return self.fetchedResultsController.sections.count + 1;
+    }
+    
+    return self.fetchedResultsController.sections.count + 1;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -138,8 +159,21 @@ fetchedResultsController:(NSFetchedResultsController *)fetchedResultsController 
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
    
+    if (self.insertTopSection) {
+    
+        if (indexPath.section == 0 && indexPath.row == 0)
+        {
+            UITableViewCell *cell;
+            cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
+            return cell;
+        }
+
+    }
+    
+    //indexPath = [self mapIndexPathToFetchResultsController:indexPath];
+    NSLog(@"indexpath row: %i section: %i", indexPath.row, indexPath.section);
     id cell = [tableView dequeueReusableCellWithIdentifier:self.reuseIdentifier forIndexPath:indexPath];
-    id object = [self.fetchedResultsController objectAtIndexPath:indexPath];
+    id object = [self.fetchedResultsController objectAtIndexPath:[self mapIndexPathToFetchResultsController:indexPath]];
     [self.delegate dataSource:self configureCell:cell withObject:object];
     
     return cell;
@@ -257,6 +291,30 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
 - (BOOL)shouldMakeMoveForMovedObjectFromIndexPath:(NSIndexPath *)fromIndexPath toIndexPath:(NSIndexPath *)toIndexPath {
     
     return !([self.sectionsBeingRemoved containsIndex:fromIndexPath.section] || [self.sectionsBeingAdded containsIndex:toIndexPath.section]);
+}
+
+- (NSIndexPath *)mapIndexPathFromFetchResultsController:(NSIndexPath *)indexPath
+{
+    if (!self.insertTopSection) {
+        return indexPath;
+    }
+    
+    if (indexPath.section > 0)
+        indexPath = [NSIndexPath indexPathForRow:indexPath.row inSection:indexPath.section + 1];
+    
+    return indexPath;
+}
+
+- (NSIndexPath *)mapIndexPathToFetchResultsController:(NSIndexPath *)indexPath
+{
+    if (!self.insertTopSection) {
+        return indexPath;
+    }
+    
+    if (indexPath.section > 0)
+        indexPath = [NSIndexPath indexPathForRow:indexPath.row inSection:indexPath.section - 1];
+    
+    return indexPath;
 }
 
 @end

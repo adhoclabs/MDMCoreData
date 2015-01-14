@@ -77,6 +77,12 @@
 @property (nonatomic, weak) id<MDMFetchedResultsTableDataSourceDelegate> delegate;
 
 /**
+ A Boolean that determines if an additional section header is appended at top of data source
+ */
+
+@property (nonatomic) BOOL insertTopSection;
+
+/**
  Returns a fetched results table data source initialized with the given arguments.
  
  @param tableView The table view using this data source.
@@ -126,5 +132,11 @@
  @return The index path of `object` in the receiver's fetch results, or nil if `object` could not be found.
  */
 - (NSIndexPath *)indexPathForObject:(id)object;
+
+/**
+ Returns information about the index path if we are mapping it from an inserted section or not
+ */
+- (NSIndexPath *)mapIndexPathFromFetchResultsController:(NSIndexPath *)indexPath;
+- (NSIndexPath *)mapIndexPathToFetchResultsController:(NSIndexPath *)indexPath;
 
 @end
