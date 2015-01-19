@@ -299,8 +299,7 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
         return indexPath;
     }
     
-    if (indexPath.section > 0)
-        indexPath = [NSIndexPath indexPathForRow:indexPath.row inSection:indexPath.section + 1];
+    indexPath = [NSIndexPath indexPathForRow:indexPath.row inSection:indexPath.section + 1];
     
     return indexPath;
 }
@@ -311,8 +310,8 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
         return indexPath;
     }
     
-    if (indexPath.section > 0)
-        indexPath = [NSIndexPath indexPathForRow:indexPath.row inSection:indexPath.section - 1];
+    
+    indexPath = [NSIndexPath indexPathForRow:indexPath.row inSection:indexPath.section - 1];
     
     return indexPath;
 }
