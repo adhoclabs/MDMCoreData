@@ -217,6 +217,10 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
            atIndex:(NSUInteger)sectionIndex
      forChangeType:(NSFetchedResultsChangeType)type {
    
+    if (self.insertTopSection) {
+        sectionIndex = sectionIndex + 1;
+    }
+   
     switch (type) {
         case NSFetchedResultsChangeInsert:
             [self.sectionsBeingAdded addIndex:sectionIndex];
@@ -244,6 +248,8 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
        atIndexPath:(NSIndexPath *)indexPath
      forChangeType:(NSFetchedResultsChangeType)type
       newIndexPath:(NSIndexPath *)newIndexPath {
+    
+    newIndexPath = [self mapIndexPathFromFetchResultsController:newIndexPath];
     
     switch (type) {
         case NSFetchedResultsChangeInsert:
