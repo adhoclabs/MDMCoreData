@@ -250,6 +250,7 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
       newIndexPath:(NSIndexPath *)newIndexPath {
     
     newIndexPath = [self mapIndexPathFromFetchResultsController:newIndexPath];
+    indexPath = [self mapIndexPathFromFetchResultsController:indexPath];
     
     switch (type) {
         case NSFetchedResultsChangeInsert:
