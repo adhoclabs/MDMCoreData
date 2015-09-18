@@ -99,23 +99,6 @@ fetchedResultsController:(NSFetchedResultsController *)fetchedResultsController 
 
 - (NSUInteger)numberOfRowsInSection:(NSUInteger)section {
     
-    if (self.insertTopSection) {
-    
-        if (section == 0) {
-            return 0;
-        }
-
-        NSInteger numberOfRows = 0;
-
-        if ([[self.fetchedResultsController sections] count] > 0) {
-            id <NSFetchedResultsSectionInfo> sectionInfo = [[self.fetchedResultsController sections] objectAtIndex:section-1];
-            numberOfRows = [sectionInfo numberOfObjects];
-        }
-
-        return numberOfRows;
-        
-    }
-    
     if (section < [self.fetchedResultsController.sections count]) {
         
         return [self.fetchedResultsController.sections[section] numberOfObjects];
@@ -144,36 +127,26 @@ fetchedResultsController:(NSFetchedResultsController *)fetchedResultsController 
 #pragma mark - UITableViewDataSource
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-
-    if (self.insertTopSection) {
-        return self.fetchedResultsController.sections.count + 1;
-    }
     
-    return self.fetchedResultsController.sections.count + 1;
+    return self.fetchedResultsController.sections.count;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-   
+    
     return [self numberOfRowsInSection:(NSUInteger)section];
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-   
-    if (self.insertTopSection) {
     
-        if (indexPath.section == 0 && indexPath.row == 0)
-        {
-            UITableViewCell *cell;
-            cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
-            return cell;
-        }
-
+    id object = [self.fetchedResultsController objectAtIndexPath:indexPath];
+    NSString *reuseIdentifier = self.reuseIdentifier;
+    
+    if (reuseIdentifier == nil) {
+        ZAssert([self.delegate respondsToSelector:@selector(dataSource:reuseIdentifierForObject:atIndexPath:)], @"You need to set the `reuseIdentifier` property or implement the optional dataSource:reuseIdentifierForObject:atIndexPath: delegate method.");
+        reuseIdentifier = [self.delegate dataSource:self reuseIdentifierForObject:object atIndexPath:indexPath];
     }
     
-    //indexPath = [self mapIndexPathToFetchResultsController:indexPath];
-    NSLog(@"indexpath row: %i section: %i", indexPath.row, indexPath.section);
-    id cell = [tableView dequeueReusableCellWithIdentifier:self.reuseIdentifier forIndexPath:indexPath];
-    id object = [self.fetchedResultsController objectAtIndexPath:[self mapIndexPathToFetchResultsController:indexPath]];
+    id cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier forIndexPath:indexPath];
     [self.delegate dataSource:self configureCell:cell withObject:object];
     
     return cell;
@@ -182,7 +155,7 @@ fetchedResultsController:(NSFetchedResultsController *)fetchedResultsController 
 - (void)tableView:(UITableView *)tableView
 commitEditingStyle:(UITableViewCellEditingStyle)editingStyle
 forRowAtIndexPath:(NSIndexPath *)indexPath {
- 
+    
     switch (editingStyle) {
         case UITableViewCellEditingStyleDelete: {
             [self.delegate dataSource:self deleteObject:[self.fetchedResultsController objectAtIndexPath:indexPath]
@@ -216,11 +189,7 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
   didChangeSection:(id <NSFetchedResultsSectionInfo>)sectionInfo
            atIndex:(NSUInteger)sectionIndex
      forChangeType:(NSFetchedResultsChangeType)type {
-   
-    if (self.insertTopSection) {
-        sectionIndex = sectionIndex + 1;
-    }
-   
+    
     switch (type) {
         case NSFetchedResultsChangeInsert:
             [self.sectionsBeingAdded addIndex:sectionIndex];
@@ -228,7 +197,7 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
                           withRowAnimation:UITableViewRowAnimationNone];
             
             break;
-
+            
         case NSFetchedResultsChangeDelete:
             [self.sectionsBeingRemoved addIndex:sectionIndex];
             [self.tableView deleteSections:[NSIndexSet indexSetWithIndex:sectionIndex]
@@ -249,53 +218,55 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
      forChangeType:(NSFetchedResultsChangeType)type
       newIndexPath:(NSIndexPath *)newIndexPath {
     
-    newIndexPath = [self mapIndexPathFromFetchResultsController:newIndexPath];
-    indexPath = [self mapIndexPathFromFetchResultsController:indexPath];
-    
     switch (type) {
+        case NSFetchedResultsChangeUpdate:
+            // SDK 9.0 running on iOS 8.3 bug:
+            // NSFetchedResultsController may not even contain this indexPath anymore
+            if(![self.sectionsBeingRemoved containsIndex:indexPath.section] && ![self.sectionsBeingAdded containsIndex:indexPath.section]) {
+                // iOS 8.3 sends update before delete therefore we cannot use reload
+                // fixes crash but cell may not update reliably.
+                UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+                [self.delegate dataSource:self configureCell:cell withObject:[self.fetchedResultsController objectAtIndexPath:indexPath]];
+            }
+            
+            break;
+            
         case NSFetchedResultsChangeInsert:
             [self.tableView insertRowsAtIndexPaths:@[newIndexPath]
                                   withRowAnimation:UITableViewRowAnimationNone];
-           
+            
             break;
-
+            
         case NSFetchedResultsChangeDelete:
             [self.tableView deleteRowsAtIndexPaths:@[indexPath]
                                   withRowAnimation:UITableViewRowAnimationNone];
-           
+            
             break;
-
-        case NSFetchedResultsChangeUpdate:
-            if ([self.tableView.indexPathsForVisibleRows containsObject:indexPath]) {
-                
-                [self.tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
-            }
-           
-            break;
-
+            
         case NSFetchedResultsChangeMove:
-            if (![indexPath isEqual:newIndexPath]) {
-                if ([self shouldMakeMoveForMovedObjectFromIndexPath:indexPath toIndexPath:newIndexPath]) {
-                    [self.tableView moveRowAtIndexPath:indexPath toIndexPath:newIndexPath];
-                } else {
-                    // This is to prevent a bug in UITableView from occurring.
-                    // The bug presents itself when moving a row from a newly deleted section or to a newly inserted section
-                    // This code should be removed once the bug has been fixed, it is tracked in OpenRadar
-                    // http://openradar.appspot.com/17684030
-                    
-                    
-                        [self.tableView deleteRowsAtIndexPaths:@[indexPath]
-                                              withRowAnimation:UITableViewRowAnimationFade];
-                        [self.tableView insertRowsAtIndexPaths:@[newIndexPath]
-                                              withRowAnimation:UITableViewRowAnimationAutomatic];
-                    
-                }
+            
+            // SDK 9.0 running on iOS 8.3 bug:
+            // Sends the same index path twice instead of delete
+            if(![indexPath isEqual:newIndexPath]) {
+                [self.tableView deleteRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
+                [self.tableView insertRowsAtIndexPaths:@[ newIndexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
+            } else if([self.sectionsBeingAdded containsIndex:indexPath.section]) {
+                // SDK 9.0 running on iOS 8.3 bug:
+                // Moving first item from section 0 (which becomes section 1 later) to section 0
+                // Really the only way is to delete and insert the same index path...
+                [self.tableView deleteRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
+                [self.tableView insertRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
+            } else if([self.sectionsBeingRemoved containsIndex:indexPath.section]) {
+                // SDK 9.0 running on iOS 8.3 bug:
+                // Same index path reported after section was removed
+                // we can ignore item deletion here because the whole section was removed anyway
+                [self.tableView insertRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
             }
             
             break;
         default:
             ALog(@"Missing NSFechedResultsChange case");
-
+            
             break;
     }
 }
@@ -303,29 +274,6 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
 - (BOOL)shouldMakeMoveForMovedObjectFromIndexPath:(NSIndexPath *)fromIndexPath toIndexPath:(NSIndexPath *)toIndexPath {
     
     return !([self.sectionsBeingRemoved containsIndex:fromIndexPath.section] || [self.sectionsBeingAdded containsIndex:toIndexPath.section]);
-}
-
-- (NSIndexPath *)mapIndexPathFromFetchResultsController:(NSIndexPath *)indexPath
-{
-    if (!self.insertTopSection) {
-        return indexPath;
-    }
-    
-    indexPath = [NSIndexPath indexPathForRow:indexPath.row inSection:indexPath.section + 1];
-    
-    return indexPath;
-}
-
-- (NSIndexPath *)mapIndexPathToFetchResultsController:(NSIndexPath *)indexPath
-{
-    if (!self.insertTopSection) {
-        return indexPath;
-    }
-    
-    
-    indexPath = [NSIndexPath indexPathForRow:indexPath.row inSection:indexPath.section - 1];
-    
-    return indexPath;
 }
 
 @end
