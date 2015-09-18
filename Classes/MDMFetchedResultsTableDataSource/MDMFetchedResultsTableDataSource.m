@@ -170,8 +170,6 @@ fetchedResultsController:(NSFetchedResultsController *)fetchedResultsController 
 
     }
     
-    //indexPath = [self mapIndexPathToFetchResultsController:indexPath];
-    NSLog(@"indexpath row: %i section: %i", indexPath.row, indexPath.section);
     id cell = [tableView dequeueReusableCellWithIdentifier:self.reuseIdentifier forIndexPath:indexPath];
     id object = [self.fetchedResultsController objectAtIndexPath:[self mapIndexPathToFetchResultsController:indexPath]];
     [self.delegate dataSource:self configureCell:cell withObject:object];
@@ -243,6 +241,8 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
     }
 }
 
+// Code changes lifted from here: http://stackoverflow.com/a/32466951/296966
+
 - (void)controller:(NSFetchedResultsController *)controller
    didChangeObject:(id)anObject
        atIndexPath:(NSIndexPath *)indexPath
@@ -253,6 +253,18 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
     indexPath = [self mapIndexPathFromFetchResultsController:indexPath];
     
     switch (type) {
+        case NSFetchedResultsChangeUpdate:
+            // SDK 9.0 running on iOS 8.3 bug:
+            // NSFetchedResultsController may not even contain this indexPath anymore
+            if(![self.sectionsBeingRemoved containsIndex:indexPath.section] && ![self.sectionsBeingAdded containsIndex:indexPath.section]) {
+                // iOS 8.3 sends update before delete therefore we cannot use reload
+                // fixes crash but cell may not update reliably.
+                UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+                [self.delegate dataSource:self configureCell:cell withObject:[self.fetchedResultsController objectAtIndexPath:indexPath]];
+            }
+            
+            break;
+        
         case NSFetchedResultsChangeInsert:
             [self.tableView insertRowsAtIndexPaths:@[newIndexPath]
                                   withRowAnimation:UITableViewRowAnimationNone];
@@ -265,31 +277,24 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
            
             break;
 
-        case NSFetchedResultsChangeUpdate:
-            if ([self.tableView.indexPathsForVisibleRows containsObject:indexPath]) {
-                
-                [self.tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
-            }
-           
-            break;
-
         case NSFetchedResultsChangeMove:
-            if (![indexPath isEqual:newIndexPath]) {
-                if ([self shouldMakeMoveForMovedObjectFromIndexPath:indexPath toIndexPath:newIndexPath]) {
-                    [self.tableView moveRowAtIndexPath:indexPath toIndexPath:newIndexPath];
-                } else {
-                    // This is to prevent a bug in UITableView from occurring.
-                    // The bug presents itself when moving a row from a newly deleted section or to a newly inserted section
-                    // This code should be removed once the bug has been fixed, it is tracked in OpenRadar
-                    // http://openradar.appspot.com/17684030
-                    
-                    
-                        [self.tableView deleteRowsAtIndexPaths:@[indexPath]
-                                              withRowAnimation:UITableViewRowAnimationFade];
-                        [self.tableView insertRowsAtIndexPaths:@[newIndexPath]
-                                              withRowAnimation:UITableViewRowAnimationAutomatic];
-                    
-                }
+            
+            // SDK 9.0 running on iOS 8.3 bug:
+            // Sends the same index path twice instead of delete
+            if(![indexPath isEqual:newIndexPath]) {
+                [self.tableView deleteRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
+                [self.tableView insertRowsAtIndexPaths:@[ newIndexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
+            } else if([self.sectionsBeingAdded containsIndex:indexPath.section]) {
+                // SDK 9.0 running on iOS 8.3 bug:
+                // Moving first item from section 0 (which becomes section 1 later) to section 0
+                // Really the only way is to delete and insert the same index path...
+                [self.tableView deleteRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
+                [self.tableView insertRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
+            } else if([self.sectionsBeingRemoved containsIndex:indexPath.section]) {
+                // SDK 9.0 running on iOS 8.3 bug:
+                // Same index path reported after section was removed
+                // we can ignore item deletion here because the whole section was removed anyway
+                [self.tableView insertRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
             }
             
             break;
@@ -298,11 +303,6 @@ forRowAtIndexPath:(NSIndexPath *)indexPath {
 
             break;
     }
-}
-
-- (BOOL)shouldMakeMoveForMovedObjectFromIndexPath:(NSIndexPath *)fromIndexPath toIndexPath:(NSIndexPath *)toIndexPath {
-    
-    return !([self.sectionsBeingRemoved containsIndex:fromIndexPath.section] || [self.sectionsBeingAdded containsIndex:toIndexPath.section]);
 }
 
 - (NSIndexPath *)mapIndexPathFromFetchResultsController:(NSIndexPath *)indexPath
