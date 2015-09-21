@@ -139,14 +139,7 @@ fetchedResultsController:(NSFetchedResultsController *)fetchedResultsController 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     
     id object = [self.fetchedResultsController objectAtIndexPath:indexPath];
-    NSString *reuseIdentifier = self.reuseIdentifier;
-    
-    if (reuseIdentifier == nil) {
-        ZAssert([self.delegate respondsToSelector:@selector(dataSource:reuseIdentifierForObject:atIndexPath:)], @"You need to set the `reuseIdentifier` property or implement the optional dataSource:reuseIdentifierForObject:atIndexPath: delegate method.");
-        reuseIdentifier = [self.delegate dataSource:self reuseIdentifierForObject:object atIndexPath:indexPath];
-    }
-    
-    id cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier forIndexPath:indexPath];
+    id cell = [tableView dequeueReusableCellWithIdentifier:self.reuseIdentifier forIndexPath:indexPath];
     [self.delegate dataSource:self configureCell:cell withObject:object];
     
     return cell;
